@@ -3,37 +3,36 @@ section .data
     output_file db "interpolated_image.img", 0
 
 section .bss
-    buffer resb 97*97             ; Imagen original
-    output_buffer resb 289*289    ; Imagen escalada
+    buffer resb 97*97
+    output_buffer resb 385*385
 
 section .text
     global _start
 
 _start:
-    ; Abrir imagen original
+    ; Abrir imagen
     mov rax, 2
     mov rdi, input_file
     mov rsi, 0
     syscall
     mov rdi, rax
 
-    ; Leer imagen original
+    ; Leer buffer
     mov rax, 0
     mov rsi, buffer
     mov rdx, 97*97
     syscall
 
-    ; Escalado bilineal
-    xor rcx, rcx        ; y loop: 0 to 95
+    xor rcx, rcx
 .loop_y:
     cmp rcx, 96
-    jge .end_interp
-    xor rdx, rdx        ; x loop: 0 to 95
+    jge .end
+    xor rdx, rdx
 .loop_x:
     cmp rdx, 96
     jge .next_row
 
-    ; Cargar píxeles
+    ; Índices base
     mov r8, rcx
     imul r8, 97
     add r8, rdx
@@ -42,94 +41,143 @@ _start:
     movzx r11, byte [buffer + r8 + 97]    ; P3
     movzx r12, byte [buffer + r8 + 98]    ; P4
 
-    ; Coordenadas base en nueva imagen
+    ; Coordenadas base en imagen 385x385
     mov r13, rcx
-    imul r13, 3           ; y*3
+    imul r13, 4
     mov r14, rdx
-    imul r14, 3           ; x*3
-
-    ; Posición base en buffer nuevo
+    imul r14, 4
     mov r15, r13
-    imul r15, 289
+    imul r15, 385
     add r15, r14
 
-    ; P1
-    mov [output_buffer + r15], r9b
-
-    ; a = (P1*3 + P2)/4
+    ; --- Primera fila ---
+    mov [output_buffer + r15], r9b                    ; P1
     mov rax, r9
     imul rax, 3
     add rax, r10
     shr rax, 2
-    mov [output_buffer + r15 + 1], al
-
-    ; b = (P1 + P2*3)/4
-    mov rax, r9
-    add rax, r10
-    imul r10, 2
-    add rax, r10
+    mov [output_buffer + r15 + 1], al                 ; a
+    mov rax, r10
+    imul rax, 3
+    add rax, r9
     shr rax, 2
-    mov [output_buffer + r15 + 2], al
+    mov [output_buffer + r15 + 2], al                 ; b
+    mov [output_buffer + r15 + 3], r10b               ; P2
 
-    ; P2
-    mov [output_buffer + r15 + 3], r10b
-
-    ; Segunda fila
+    ; --- Segunda fila ---
     mov rbx, r13
     add rbx, 1
-    imul rbx, 289
+    imul rbx, 385
     add rbx, r14
 
-    ; h = (P1*3 + P3)/4
     mov rax, r9
     imul rax, 3
     add rax, r11
     shr rax, 2
-    mov [output_buffer + rbx], al
+    mov [output_buffer + rbx], al                     ; h
 
-    ; d = interpolación vertical entre a y c
-    mov rax, r11
+    ; d = (3*a + c)/4
+    mov rax, r9
     imul rax, 3
-    add rax, r12
-    shr rax, 2          ; c
-    mov rsi, rax        ; guardar c
-    movzx rdi, byte [output_buffer + r15 + 1] ; a
-    mov rax, rdi
-    imul rax, 3
-    add rax, rsi
-    shr rax, 2
-    mov [output_buffer + rbx + 1], al    ; d
+    add rax, r10
+    shr rax, 2        ; a
+    mov rsi, r11
+    imul rsi, 3
+    add rsi, r12
+    shr rsi, 2        ; c
+    mov rdi, rax
+    imul rdi, 3
+    add rdi, rsi
+    shr rdi, 2
+    mov [output_buffer + rbx + 1], dil                ; d
 
-    ; f = (P2*3 + P4)/4
+    ; e = (3*b + l)/4
+    mov rax, r10
+    imul rax, 3
+    add rax, r9
+    shr rax, 2        ; b
+    mov rsi, r12
+    imul rsi, 3
+    add rsi, r11
+    shr rsi, 2        ; l
+    mov rdi, rax
+    imul rdi, 3
+    add rdi, rsi
+    shr rdi, 2
+    mov [output_buffer + rbx + 2], dil                ; e
+
     mov rax, r10
     imul rax, 3
     add rax, r12
     shr rax, 2
-    mov [output_buffer + rbx + 3], al
+    mov [output_buffer + rbx + 3], al                 ; f
 
-    ; Tercera fila
-    mov rsi, r13
-    add rsi, 2
-    imul rsi, 289
-    add rsi, r14
+    ; --- Tercera fila ---
+    mov rbx, r13
+    add rbx, 2
+    imul rbx, 385
+    add rbx, r14
 
-    ; P3
-    mov [output_buffer + rsi], r11b
-
-    ; c = ya está en rsi (lo copiamos de antes)
-    mov [output_buffer + rsi + 1], sil
-
-    ; l = (P3 + P4*3)/4
     mov rax, r11
-    add rax, r12
-    imul r12, 2
+    imul rax, 3
+    add rax, r9
+    shr rax, 2
+    mov [output_buffer + rbx], al                     ; g
+
+    mov rax, r9
+    imul rax, 3
+    add rax, r11
+    shr rax, 2        ; h
+    mov rsi, r11
+    imul rsi, 3
+    add rsi, r9
+    shr rsi, 2        ; g
+    mov rdi, rax
+    imul rdi, 3
+    add rdi, rsi
+    shr rdi, 2
+    mov [output_buffer + rbx + 1], dil                ; i
+
+    mov rax, r12
+    imul rax, 3
+    add rax, r10
+    shr rax, 2        ; k
+    mov rsi, r10
+    imul rsi, 3
+    add rsi, r12
+    shr rsi, 2        ; f
+    mov rdi, rsi
+    imul rdi, 3
+    add rdi, rax
+    shr rdi, 2
+    mov [output_buffer + rbx + 2], dil                ; j
+
+    mov rax, r12
+    imul rax, 3
+    add rax, r10
+    shr rax, 2
+    mov [output_buffer + rbx + 3], al                 ; k
+
+    ; --- Cuarta fila ---
+    mov rbx, r13
+    add rbx, 3
+    imul rbx, 385
+    add rbx, r14
+    mov [output_buffer + rbx], r11b                  ; P3
+
+    mov rax, r11
+    imul rax, 3
     add rax, r12
     shr rax, 2
-    mov [output_buffer + rsi + 2], al
+    mov [output_buffer + rbx + 1], al                 ; c
 
-    ; P4
-    mov [output_buffer + rsi + 3], r12b
+    mov rax, r12
+    imul rax, 3
+    add rax, r11
+    shr rax, 2
+    mov [output_buffer + rbx + 2], al                 ; l
 
+    mov [output_buffer + rbx + 3], r12b               ; P4
 
     inc rdx
     jmp .loop_x
@@ -137,8 +185,8 @@ _start:
     inc rcx
     jmp .loop_y
 
-.end_interp:
-    ; Guardar imagen interpolada
+.end:
+    ; Guardar resultado
     mov rax, 2
     mov rdi, output_file
     mov rsi, 0x42
@@ -148,7 +196,7 @@ _start:
 
     mov rax, 1
     mov rsi, output_buffer
-    mov rdx, 289*289
+    mov rdx, 385*385
     syscall
 
     mov rax, 60

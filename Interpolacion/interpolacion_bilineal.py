@@ -7,6 +7,7 @@ from tkinter import filedialog
 
 GRID_SIZE = 4
 SIZE = (390, 390)
+INTERP_SIZE = 385  # Nuevo tamaño de imagen interpolada
 
 class InterpolacionApp:
     def __init__(self, root):
@@ -15,7 +16,7 @@ class InterpolacionApp:
         self.img_path = ""
         self.quadrants = []
         self.qh = self.qw = 0
-        self.interpolated_img = None  # nueva variable
+        self.interpolated_img = None
 
         self.btn_load = tk.Button(root, text="Cargar Imagen", command=self.load_image)
         self.btn_load.pack(pady=10)
@@ -27,7 +28,6 @@ class InterpolacionApp:
         self.output_frame = tk.Frame(root)
         self.output_frame.pack()
 
-        # Nuevo botón para guardar imagen interpolada
         self.btn_save = tk.Button(root, text="Guardar Interpolado", command=self.save_interpolated)
         self.btn_save.pack(pady=5)
         self.btn_save.config(state=tk.DISABLED)
@@ -76,8 +76,9 @@ class InterpolacionApp:
         subprocess.run(["ld", "interpol_bil.o", "-o", "interpol_bil"])
         subprocess.run(["./interpol_bil"])
 
-        interp_data = np.fromfile("interpolated_image.img", dtype=np.uint8).reshape((289, 289))
-        self.interpolated_img = Image.fromarray(interp_data)  # guardar imagen completa
+        # Leer imagen interpolada de 385x385
+        interp_data = np.fromfile("interpolated_image.img", dtype=np.uint8).reshape((385, 385))
+        self.interpolated_img = Image.fromarray(interp_data)
         self.show_images(self.img_data, quadrant, interp_data)
         self.btn_save.config(state=tk.NORMAL)
 
@@ -85,12 +86,15 @@ class InterpolacionApp:
         for widget in self.output_frame.winfo_children():
             widget.destroy()
 
-        imgs = [original, quadrant, interpolated]
-        titles = ["Original", "Cuadrante", "Interpolado"]
+        imgs = [
+            Image.fromarray(original).resize((130, 130), resample=Image.BILINEAR),
+            Image.fromarray(quadrant).resize((130, 130), resample=Image.BILINEAR),
+            Image.fromarray(interpolated).resize((130, 130), resample=Image.BILINEAR)
+        ]
+        titles = ["Original", "Cuadrante", "Interpolado (4x4)"]
 
         for i in range(3):
-            img = Image.fromarray(imgs[i]).resize((130, 130), resample=Image.BILINEAR)
-            tk_img = ImageTk.PhotoImage(img)
+            tk_img = ImageTk.PhotoImage(imgs[i])
             lbl = tk.Label(self.output_frame, text=titles[i])
             lbl.pack(side=tk.LEFT, padx=5)
             panel = tk.Label(self.output_frame, image=tk_img)
