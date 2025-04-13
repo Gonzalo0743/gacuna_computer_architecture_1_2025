@@ -87,9 +87,9 @@ class InterpolacionApp:
             widget.destroy()
 
         imgs = [
-            Image.fromarray(original).resize((130, 130), resample=Image.BILINEAR),
-            Image.fromarray(quadrant).resize((130, 130), resample=Image.BILINEAR),
-            Image.fromarray(interpolated).resize((130, 130), resample=Image.BILINEAR)
+            Image.fromarray(original).resize((400, 400), resample=Image.BILINEAR),
+            Image.fromarray(quadrant).resize((400, 400), resample=Image.BILINEAR),
+            Image.fromarray(interpolated).resize((400, 400), resample=Image.BILINEAR)
         ]
         titles = ["Original", "Cuadrante", "Interpolado (4x4)"]
 
